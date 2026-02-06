@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система детекции дронов</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Заголовок -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-satellite-dish"></i>
+                <h1>СИСТЕМА ДЕТЕКТОРА ДРОНОВ</h1>
+            </div>
+            <div class="system-status">
+                <div class="status-indicator active"></div>
+                <span>СИСТЕМА АКТИВНА</span>
+                <div class="last-update" id="last-update">--:--:--</div>
+            </div>
+        </header>
+
+        <!-- Основная панель -->
+        <main class="main-content">
+            <!-- Карта здания -->
+            <div class="building-map">
+                <div class="building">
+                    <!-- Северная установка -->
+                    <div class="installation north" id="north-installation">
+                        <div class="installation-header">
+                            <h3>СЕВЕР</h3>
+                            <div class="status-dot" id="north-dot"></div>
+                        </div>
+                        <div class="installation-info">
+                            <div class="info-item">
+                                <i class="fas fa-clock"></i>
+                                <span id="north-time">--:--:--</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-wave-square"></i>
+                                <span id="north-freq">--- Гц</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-bullseye"></i>
+                                <span id="north-conf">---%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Восточная установка -->
+                    <div class="installation east" id="east-installation">
+                        <div class="installation-header">
+                            <h3>ВОСТОК</h3>
+                            <div class="status-dot" id="east-dot"></div>
+                        </div>
+                        <div class="installation-info">
+                            <div class="info-item">
+                                <i class="fas fa-clock"></i>
+                                <span id="east-time">--:--:--</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-wave-square"></i>
+                                <span id="east-freq">--- Гц</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-bullseye"></i>
+                                <span id="east-conf">---%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Южная установка -->
+                    <div class="installation south" id="south-installation">
+                        <div class="installation-header">
+                            <h3>ЮГ</h3>
+                            <div class="status-dot" id="south-dot"></div>
+                        </div>
+                        <div class="installation-info">
+                            <div class="info-item">
+                                <i class="fas fa-clock"></i>
+                                <span id="south-time">--:--:--</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-wave-square"></i>
+                                <span id="south-freq">--- Гц</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-bullseye"></i>
+                                <span id="south-conf">---%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Западная установка -->
+                    <div class="installation west" id="west-installation">
+                        <div class="installation-header">
+                            <h3>ЗАПАД</h3>
+                            <div class="status-dot" id="west-dot"></div>
+                        </div>
+                        <div class="installation-info">
+                            <div class="info-item">
+                                <i class="fas fa-clock"></i>
+                                <span id="west-time">--:--:--</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-wave-square"></i>
+                                <span id="west-freq">--- Гц</span>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-bullseye"></i>
+                                <span id="west-conf">---%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Здание -->
+                    <div class="building-center">
+                        <div class="building-roof"></div>
+                        <div class="building-body">
+                            <i class="fas fa-building"></i>
+                            <span>ОХРАНЯЕМЫЙ ОБЪЕКТ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Логи и статистика -->
+            <div class="right-panel">
+                <!-- Статистика -->
+                <div class="stats-card">
+                    <h3><i class="fas fa-chart-bar"></i> СТАТИСТИКА</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="total-detections">0</div>
+                            <div class="stat-label">Всего детекций</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="active-now">0</div>
+                            <div class="stat-label">Активные сейчас</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="avg-frequency">0</div>
+                            <div class="stat-label">Ср. частота (Гц)</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="uptime">100%</div>
+                            <div class="stat-label">Доступность</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Лог событий -->
+                <div class="log-card">
+                    <div class="log-header">
+                        <h3><i class="fas fa-clipboard-list"></i> ЛОГ СОБЫТИЙ</h3>
+                        <button class="clear-btn" onclick="clearLog()">
+                            <i class="fas fa-trash"></i> Очистить
+                        </button>
+                    </div>
+                    <div class="log-content" id="log-content">
+                        <div class="log-empty">
+                            <i class="fas fa-info-circle"></i>
+                            <p>Ожидание событий...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Системные уведомления -->
+        <div class="alerts-container" id="alerts-container">
+            <!-- Уведомления будут добавляться динамически -->
+        </div>
+
+        <!-- Футер -->
+        <footer class="footer">
+            <div class="footer-info">
+                <div class="server-status">
+                    <i class="fas fa-server"></i>
+                    <span>Сервер: <span id="server-status">Онлайн</span></span>
+                </div>
+                <div class="client-count">
+                    <i class="fas fa-microchip"></i>
+                    <span>Установок: <span id="client-count">0</span>/4</span>
+                </div>
+                <div class="system-uptime">
+                    <i class="fas fa-clock"></i>
+                    <span>Время работы: <span id="system-uptime">00:00:00</span></span>
+                </div>
+            </div>
+            <div class="copyright">
+                © 2026 Система детекции дронов | v1.1
+            </div>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
