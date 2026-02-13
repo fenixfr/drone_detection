@@ -1,4 +1,3 @@
-// ГЛОБАЛЬНЫЕ ФУНКЦИИ ДЛЯ ONCLICK
 function clearLog() {
     if (window.droneSystem) {
         window.droneSystem.clearLog();
