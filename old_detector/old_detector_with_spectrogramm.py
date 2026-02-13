@@ -65,9 +65,6 @@ frequency_history = deque(maxlen=10)  # История основных част
 
 # Функция для дополнительной проверки гармоник с временной фильтрацией
 def check_harmonics_with_delay(frequency_axis, magnitude_log):
-    """
-    Улучшенная проверка гармоник с временной фильтрацией
-    """
     if not HARMONICS_CHECK:
         return True, None
     
@@ -82,7 +79,7 @@ def check_harmonics_with_delay(frequency_axis, magnitude_log):
     peak_values = []
     peak_frequencies = []
     
-    # Более строгий поиск пиков: смотрим на окрестность 5 точек
+    # Поиск пиков: смотрим на окрестность 5 точек
     for i in range(10, len(magnitude_log) - 10):
         if magnitude_log[i] > PEAK_THRESHOLD:
             # Проверяем, что это действительно пик в окрестности ±10 точек
@@ -152,7 +149,7 @@ def check_harmonics_with_delay(frequency_axis, magnitude_log):
             freq_diff = abs(freq - target_freq)
             relative_diff = freq_diff / target_freq
             
-            if relative_diff < 0.08 and freq_diff < min_diff:  # Более строгий допуск 8%
+            if relative_diff < 0.08 and freq_diff < min_diff:  # Допуск 8%
                 min_diff = freq_diff
                 closest_peak = (freq, norm, val)
         
@@ -160,7 +157,7 @@ def check_harmonics_with_delay(frequency_axis, magnitude_log):
         if closest_peak and closest_peak[1] > 0.2:  # Амплитуда не менее 20% от основной
             harmonics_found += 1
     
-    # 5. Более строгие критерии для дронов
+    # 5. Критерии для дронов
     current_result = False
     
     # Критерии:
@@ -206,8 +203,7 @@ def check_harmonics_with_delay(frequency_axis, magnitude_log):
     else:
         return False, fundamental_freq
 
-def safe_exit():
-    """Безопасно закрывает программу"""
+def safe_exit(): #Безопасно закрывает программу
     print("Закрываю программу...")
     try:
         if 'audio_stream' in globals():
@@ -249,8 +245,7 @@ main_container = tk.Frame(window, bg='#d0d0d0', bd=3, relief=tk.SUNKEN)
 main_container.place(x=15, y=15, width=PLOT_WIDTH, height=PLOT_HEIGHT)
 
 
-def create_stream(buffer, rate, device_index=None):
-    """Инициализация аудиопотока с указанным микрофоном"""
+def create_stream(buffer, rate, device_index=None): #Инициализация аудиопотока с указанным микрофоном
     if device_index is None:
         device_index = current_device_index
     
@@ -438,7 +433,7 @@ confirmation_progress = tk.Canvas(
 confirmation_progress.place(x=control_panel_x, y=320)
 confirmation_bar = confirmation_progress.create_rectangle(0, 0, 0, 15, fill='#ff4444')
 
-# СЕКЦИЯ ИНДИКАТОРА С ПОЯСНЕНИЯМИ
+# СЕКЦИЯ ИНДИКАТОРА
 # Заголовок индикатора
 indicator_label = tk.Label(
     window,
@@ -449,7 +444,7 @@ indicator_label = tk.Label(
 )
 indicator_label.place(x=control_panel_x, y=350)
 
-# Зеленый квадратик с пояснением
+# Зеленый квадратик
 green_indicator = tk.Canvas(
     window,
     width=20,
@@ -469,7 +464,7 @@ green_label = tk.Label(
 )
 green_label.place(x=control_panel_x + 25, y=380)
 
-# Красный квадратик с пояснением
+# Красный квадратик
 red_indicator = tk.Canvas(
     window,
     width=20,
@@ -501,7 +496,7 @@ status_indicator = tk.Canvas(
 status_indicator.place(x=control_panel_x, y=440)
 status_light = status_indicator.create_oval(20, 15, 45, 45, fill='#ff4444', outline='#ffffff', width=2)
 
-# СЕКЦИЯ ВЫБОРА МИКРОФОНА (ниже индикатора)
+# СЕКЦИЯ ВЫБОРА МИКРОФОНА
 # Заголовок выбора микрофона
 mic_label = tk.Label(
     window,
@@ -635,7 +630,6 @@ for threshold in thresholds:
 
 
 # Функция обновления графиков
-# Функция обновления графиков
 def refresh_plots(audio_data):
     global SAMPLE_RATE, BUFFER_SIZE, spectrogram_buffer, elapsed_time, detection_active, detection_time
     global detection_start_time, bands_detected_history
@@ -661,7 +655,7 @@ def refresh_plots(audio_data):
     line_amplitude.set_data(frequency_axis, magnitude_log)
 
     # Проверка условий обнаружения в полосах частот
-    # Улучшенная проверка с учетом средней амплитуды в полосе
+    # С учетом средней амплитуды в полосе
     bands_detection = []
     
     for band_low, band_high, threshold in frequency_bands:
@@ -669,7 +663,7 @@ def refresh_plots(audio_data):
         band_indices = np.where((frequency_axis >= band_low) & (frequency_axis <= band_high))
         
         if len(band_indices[0]) > 0:
-            # Берем среднюю амплитуду в полосе (более устойчиво к шумам)
+            # Берем среднюю амплитуду в полосе
             band_amplitude = np.mean(magnitude_log[band_indices])
             # И максимальную амплитуду
             max_amplitude = np.max(magnitude_log[band_indices])
@@ -690,7 +684,7 @@ def refresh_plots(audio_data):
     
     bands_detected_history.append(all_bands_detected)
     
-    # ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА ГАРМОНИК С ЗАДЕРЖКОЙ
+    # ПРОВЕРКА ГАРМОНИК С ЗАДЕРЖКОЙ
     harmonics_confirmed, current_freq = check_harmonics_with_delay(frequency_axis, magnitude_log)
     
     # Обновление индикатора гармоник
@@ -721,7 +715,7 @@ def refresh_plots(audio_data):
             else:
                 frequency_label.config(text="Частота: --- Гц")
 
-    # Управление индикатором (КОМБИНИРОВАННАЯ ПРОВЕРКА)
+    # Управление индикатором 
     # Проверяем историю полос - сигнал должен быть стабильным
     if len(bands_detected_history) >= 30:  # Ждем пока накопится история (1.5 секунды)
         # Считаем, сколько раз полосы были обнаружены за последние 3 секунды (примерно 60 проверок)
@@ -767,7 +761,7 @@ def process_audio():
             dtype=np.int16
         )
         refresh_plots(raw_audio)
-        window.after(50, process_audio)  # Увеличил интервал для стабильности
+        window.after(50, process_audio) 
     except Exception as e:
         print(f"Audio Error: {e}")
         # Попытка переподключения при ошибке
@@ -795,4 +789,5 @@ except Exception as e:
     print(f"Произошла ошибка: {e}")
 finally:
     safe_exit()
+
 
