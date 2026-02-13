@@ -2,17 +2,6 @@
 
 # -*- coding: utf-8 -*-
 
-"""
-Оптимизированный детектор дронов для Raspberry Pi 4 - HYBRID VERSION
-
-- Алгоритм обнаружения из File:1 (более стабильный и надёжный)
-- Функция отправки на сервер из File:2 (распределённая система)
-- Полная синхронизация потоков (time.sleep для стабильности)
-- High-pass фильтрация Butterworth 80Hz
-- Адаптивные пороги обнаружения
-- Классификация типов дронов (SMALL/MEDIUM/LARGE)
-"""
-
 import numpy as np
 import pyaudio
 from scipy.fftpack import fft
@@ -26,9 +15,7 @@ import requests
 import json
 import threading
 
-# ============================================================================
 # КОНФИГУРАЦИЯ ДЛЯ RASPBERRY PI
-# ============================================================================
 
 # Параметры аудиопотока
 BUFFER_SIZE = 2048
@@ -75,9 +62,9 @@ HARMONICS_CHECK = True
 USE_WELCH = True
 ADAPTIVE_THRESHOLDS = True
 
-# Настройки временной фильтрации (ИЗ FILE:1 - ДЛЯ СТАБИЛЬНОСТИ)
+# Настройки временной фильтрации
 HARMONIC_HISTORY_SIZE = 40
-CONFIRMATION_THRESHOLD = 0.35  # ← БОЛЕЕ КОНСЕРВАТИВНЫЙ (0.4 вместо 0.35)
+CONFIRMATION_THRESHOLD = 0.35  
 
 # Butterworth фильтр для шумоподавления (HIGH-PASS 80Hz)
 butter_sos = butter(2, 80, btype='high', fs=SAMPLE_RATE, output='sos')
@@ -102,12 +89,11 @@ last_detection_time = 0
 running = True
 detection_active = False
 
-# ============================================================================
-# ФУНКЦИИ ОТПРАВКИ НА СЕРВЕР (ИЗ FILE:2)
-# ============================================================================
+
+# ФУНКЦИИ ОТПРАВКИ НА СЕРВЕР
 
 # КОНФИГУРАЦИЯ СЕРВЕРА
-SERVER_URL = "http://192.168.0.223:5000/api/update"  # ← ЗАМЕНИТЕ НА СВОЙ IP!
+SERVER_URL = "http://192.168.0.223:5000/api/update" 
 INSTALLATION_ID = "north"  # ← north, east, south, west
 
 # Переменные для отправки данных
@@ -115,8 +101,7 @@ last_sent_status = None
 send_lock = threading.Lock()
 last_send_time = 0
 
-def send_to_server(detected, frequency, drone_type, confidence):
-    """Отправляет статус на сервер с обработкой ошибок"""
+def send_to_server(detected, frequency, drone_type, confidence): #Отправляет статус на сервер с обработкой ошибок
     global last_sent_status, last_send_time
     
     current_time = time.time()
@@ -159,12 +144,9 @@ def send_to_server(detected, frequency, drone_type, confidence):
         except Exception as e:
             print(f"✗ Ошибка: {type(e).__name__}")
 
-# ============================================================================
 # ФУНКЦИИ ОБРАБОТКИ СПЕКТРА
-# ============================================================================
 
-def compute_welch_spectrum(audio_data, fs, nperseg=512, noverlap=256):
-    """Вычисляет спектр методом Уэлча"""
+def compute_welch_spectrum(audio_data, fs, nperseg=512, noverlap=256): #Вычисляет спектр методом Уэлча
     f, Pxx = welch(audio_data, fs=fs, nperseg=nperseg,
                    noverlap=noverlap, nfft=FFT_SIZE,
                    scaling='spectrum', window='hann')
@@ -172,8 +154,7 @@ def compute_welch_spectrum(audio_data, fs, nperseg=512, noverlap=256):
     magnitude_log = np.log1p(magnitude * 1000)
     return f, magnitude_log[:len(f)]
 
-def update_noise_floor(spectrum, freq_axis):
-    """Обновляет уровень фонового шума"""
+def update_noise_floor(spectrum, freq_axis): #Обновляет уровень фонового шума
     high_freq_mask = freq_axis > 10000
     if np.any(high_freq_mask):
         noise_level = np.median(spectrum[high_freq_mask])
@@ -181,8 +162,7 @@ def update_noise_floor(spectrum, freq_axis):
         return noise_level
     return 0.0
 
-def get_adaptive_threshold(base_threshold):
-    """Возвращает порог с учётом уровня шума"""
+def get_adaptive_threshold(base_threshold): #Возвращает порог с учётом уровня шума
     if not ADAPTIVE_THRESHOLDS or len(noise_floor_history) < 10:
         return base_threshold
     
@@ -190,8 +170,7 @@ def get_adaptive_threshold(base_threshold):
     adaptive_factor = 1.0 + (current_noise * 0.5)
     return base_threshold * adaptive_factor
 
-def classify_drone_type(peak_freqs, peak_vals, fundamental_freq, spectrum, freq_axis):
-    """Классифицирует тип дрона по спектральным характеристикам"""
+def classify_drone_type(peak_freqs, peak_vals, fundamental_freq, spectrum, freq_axis): #Классифицирует тип дрона по спектральным характеристикам
     scores = {}
     
     for drone_type, profile in DRONE_PROFILES.items():
@@ -226,8 +205,7 @@ def classify_drone_type(peak_freqs, peak_vals, fundamental_freq, spectrum, freq_
     
     return DroneType.UNKNOWN
 
-def calculate_confidence(harmonics_found, total_harmonics, fundamental_amp, drone_type):
-    """Вычисляет уверенность обнаружения"""
+def calculate_confidence(harmonics_found, total_harmonics, fundamental_amp, drone_type): #Вычисляет уверенность обнаружения
     harmonic_ratio = harmonics_found / total_harmonics if total_harmonics > 0 else 0
     confidence = harmonic_ratio * 0.6
     
@@ -242,16 +220,12 @@ def calculate_confidence(harmonics_found, total_harmonics, fundamental_amp, dron
     
     return min(confidence, 1.0)
 
-def check_harmonics_with_delay_enhanced(frequency_axis, magnitude_log):
-    """
-    ОСНОВНОЙ АЛГОРИТМ ОБНАРУЖЕНИЯ (ИЗ FILE:1 - СТАБИЛЬНЫЙ)
-    Улучшенная проверка гармоник с классификацией типа дрона
-    """
+def check_harmonics_with_delay_enhanced(frequency_axis, magnitude_log): #проверка гармоник с классификацией типа дрона
     global detected_drone_type, detection_confidence, adaptive_threshold_factor
     
-    # 1. Предварительная фильтрация - ПОРОГИ ИЗ FILE:1 (более консервативные)
+    # 1. Предварительная фильтрация
     overall_volume = np.max(magnitude_log)
-    if overall_volume < get_adaptive_threshold(0.3):  # ← ИЗ FILE:1
+    if overall_volume < get_adaptive_threshold(0.3):  
         harmonic_history.append(False)
         return False, None, DroneType.UNKNOWN, 0.0
     
@@ -263,25 +237,25 @@ def check_harmonics_with_delay_enhanced(frequency_axis, magnitude_log):
     peak_values = []
     peak_frequencies = []
     
-    adaptive_peak_threshold = get_adaptive_threshold(0.4)  # ← ИЗ FILE:1
+    adaptive_peak_threshold = get_adaptive_threshold(0.4)  
     
     for i in range(10, len(magnitude_log) - 10):
         if magnitude_log[i] > adaptive_peak_threshold:
             # Проверяем, что это пик
             is_peak = True
-            for offset in range(1, 11):  # ← ИЗ FILE:1 (10, а не 6)
+            for offset in range(1, 11):  
                 if magnitude_log[i] <= magnitude_log[i - offset] or \
                    magnitude_log[i] <= magnitude_log[i + offset]:
                     is_peak = False
                     break
             
-            if is_peak and magnitude_log[i] > adaptive_peak_threshold * 1.2:  # ← ИЗ FILE:1
+            if is_peak and magnitude_log[i] > adaptive_peak_threshold * 1.2:  
                 peak_indices.append(i)
                 peak_values.append(magnitude_log[i])
                 peak_frequencies.append(frequency_axis[i])
     
     # Если слишком мало пиков
-    if len(peak_indices) < 3:  # ← ИЗ FILE:1 (требует 3, а не 2)
+    if len(peak_indices) < 3:  
         harmonic_history.append(False)
         return False, None, DroneType.UNKNOWN, 0.0
     
@@ -332,13 +306,13 @@ def check_harmonics_with_delay_enhanced(frequency_axis, magnitude_log):
             freq_diff = abs(freq - target_freq)
             relative_diff = freq_diff / target_freq
             
-            tolerance = 0.05 if ratio <= 4 else 0.07  # ← ИЗ FILE:1
+            tolerance = 0.05 if ratio <= 4 else 0.07 
             
             if relative_diff < tolerance and freq_diff < min_diff:
                 min_diff = freq_diff
                 closest_peak = (freq, norm, val)
         
-        if closest_peak and closest_peak[1] > 0.15:  # ← ИЗ FILE:1
+        if closest_peak and closest_peak[1] > 0.15: 
             harmonics_found += 1
             harmonic_matches.append((ratio, closest_peak[0], closest_peak[1]))
     
@@ -348,10 +322,10 @@ def check_harmonics_with_delay_enhanced(frequency_axis, magnitude_log):
     
     # 8. Критерии обнаружения
     current_result = False
-    min_harmonics_required = 2 if drone_type == DroneType.SMALL else 1  # ← ИЗ FILE:1
+    min_harmonics_required = 2 if drone_type == DroneType.SMALL else 1 
     
     if (harmonics_found >= min_harmonics_required and
-        fundamental_val > get_adaptive_threshold(0.5)):  # ← ИЗ FILE:1
+        fundamental_val > get_adaptive_threshold(0.5)): 
         
         # Проверяем стабильность частоты
         if len(frequency_history) >= 5:
@@ -367,7 +341,7 @@ def check_harmonics_with_delay_enhanced(frequency_axis, magnitude_log):
     harmonic_history.append(current_result)
     
     # Временная фильтрация
-    if len(harmonic_history) < HARMONIC_HISTORY_SIZE // 2:  # ← ИЗ FILE:1
+    if len(harmonic_history) < HARMONIC_HISTORY_SIZE // 2: 
         return False, fundamental_freq, drone_type, confidence
     
     positive_count = sum(harmonic_history)
@@ -386,12 +360,9 @@ def check_harmonics_with_delay_enhanced(frequency_axis, magnitude_log):
     
     return False, fundamental_freq, drone_type, confidence
 
-# ============================================================================
 # ФУНКЦИИ МИКРОФОНА
-# ============================================================================
 
-def get_available_microphones():
-    """Получает список доступных микрофонов"""
+def get_available_microphones(): #Получает список доступных микрофонов
     microphones = []
     info = audio_engine.get_host_api_info_by_index(0)
     num_devices = info.get('deviceCount')
@@ -404,8 +375,7 @@ def get_available_microphones():
     
     return microphones
 
-def create_stream(buffer, rate, device_index=None):
-    """Инициализация аудиопотока"""
+def create_stream(buffer, rate, device_index=None): #Инициализация аудиопотока
     try:
         stream = audio_engine.open(
             format=pyaudio.paInt16,
@@ -421,8 +391,7 @@ def create_stream(buffer, rate, device_index=None):
         print(f"Ошибка создания потока: {e}")
         return None
 
-def safe_exit():
-    """Безопасно закрывает программу"""
+def safe_exit(): #Безопасно закрывает программу
     global running
     running = False
     
@@ -432,34 +401,31 @@ def safe_exit():
         if 'audio_stream' in globals() and audio_stream is not None:
             audio_stream.stop_stream()
             audio_stream.close()
-            print("✓ Аудиопоток закрыт")
+            print("Аудиопоток закрыт")
     except Exception as e:
-        print(f"✗ Ошибка при закрытии потока: {e}")
+        print(f"Ошибка при закрытии потока: {e}")
     
     try:
         if 'audio_engine' in globals():
             audio_engine.terminate()
-            print("✓ Аудиодвижок закрыт")
+            print("Аудиодвижок закрыт")
     except Exception as e:
-        print(f"✗ Ошибка при закрытии движка: {e}")
+        print(f"Ошибка при закрытии движка: {e}")
     
     sys.exit(0)
 
-# ============================================================================
 # ГЛАВНЫЙ ЦИКЛ ОБРАБОТКИ АУДИО
-# ============================================================================
 
-def audio_processing_thread():
-    """Поток обработки аудио"""
+def audio_processing_thread(): #Поток обработки аудио
     global running, detection_active, last_detection_time
     
     print("\n" + "="*70)
-    print("🚁 ДЕТЕКТОР ДРОНОВ - HYBRID VERSION (СТАБИЛЬНЫЙ + СЕРВЕР)")
+    print("ДЕТЕКТОР ДРОНОВ - HYBRID VERSION")
     print("="*70)
     print(f"Установка: {INSTALLATION_ID.upper()}")
     print(f"Сервер: {SERVER_URL}")
     print(f"Параметры: SR={SAMPLE_RATE}Hz, FFT={FFT_SIZE}, Welch={WELCH_SEGMENT}/{WELCH_OVERLAP}")
-    print(f"Алгоритм: File:1 (стабильность) + File:2 (сервер)")
+    print(f"Алгоритм")
     print("="*70 + "\n")
     
     frame_count = 0
@@ -523,7 +489,7 @@ def audio_processing_thread():
                     end='', flush=True
                 )
             
-            # ✅ КРИТИЧЕСКИЙ: time.sleep для синхронизации (из File:1)
+            # time.sleep для синхронизации
             time.sleep(0.001)
         
         except IOError as e:
@@ -533,9 +499,8 @@ def audio_processing_thread():
             print(f"\nОшибка обработки: {e}")
             time.sleep(0.1)
 
-# ============================================================================
+
 # ГЛАВНАЯ ПРОГРАММА
-# ============================================================================
 
 if __name__ == "__main__":
     try:
@@ -547,20 +512,20 @@ if __name__ == "__main__":
         
         # Используем первый микрофон
         current_device_index = microphones[0][0]
-        print(f"✓ Используется микрофон: {microphones[0][1]}")
+        print(f"Используется микрофон: {microphones[0][1]}")
         
         # Создаем аудиопоток
         audio_stream = create_stream(BUFFER_SIZE, SAMPLE_RATE, current_device_index)
         if audio_stream is None:
-            print("✗ Не удалось создать аудиопоток!")
+            print("Не удалось создать аудиопоток!")
             sys.exit(1)
         
         # Запускаем поток обработки аудио
         audio_thread = Thread(target=audio_processing_thread, daemon=True)
         audio_thread.start()
         
-        print(f"\n✓ Детектор запущен (установка: {INSTALLATION_ID.upper()})")
-        print("✓ Отправка данных на сервер активна")
+        print(f"\nДетектор запущен (установка: {INSTALLATION_ID.upper()})")
+        print("Отправка данных на сервер активна")
         print("Нажмите Ctrl+C для остановки\n")
         
         # Держим основной поток активным
@@ -568,8 +533,8 @@ if __name__ == "__main__":
             time.sleep(0.1)
     
     except KeyboardInterrupt:
-        print("\n\n⚠️ Программа прервана (Ctrl+C)")
+        print("\n\nПрограмма прервана (Ctrl+C)")
     except Exception as e:
-        print(f"\n✗ Ошибка: {e}")
+        print(f"\nОшибка: {e}")
     finally:
         safe_exit()
